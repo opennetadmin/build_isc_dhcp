@@ -1,0 +1,236 @@
+#!/bin/bash
+#
+# build_dhcpd
+#
+# Written by: Matt Pascoe <matt@opennetadmin.com>
+#
+# License:
+#  build_dhcpd (hereafter referred to as "program") is free software;
+#  you can redistribute it and/or modify it under the terms of the GNU General
+#  Public License as published by the Free Software Foundation; either version
+#  2 of the License, or (at your option) any later version.
+#  Note that when redistributing modified versions of this source code, you
+#  must ensure that this disclaimer and the above coder's names are included
+#  VERBATIM in the modified code.
+# 
+# Disclaimer:
+#  This program is provided with no warranty of any kind, either expressed or
+#  implied.  It is the responsibility of the user (you) to fully research and
+#  comprehend the usage of this program.  As with any tool, it can be misused,
+#  either intentionally (you're a vandal) or unintentionally (you're a moron).
+#  THE AUTHOR(S) IS(ARE) NOT RESPONSIBLE FOR ANYTHING YOU DO WITH THIS PROGRAM
+#  or anything that happens because of your use (or misuse) of this program,
+#  including but not limited to anything you, your lawyers, or anyone else
+#  can dream up.  And now, a relevant quote directly from the GPL:
+# 
+# NO WARRANTY
+# 
+#  11. BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
+#  FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN
+#  OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
+#  PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED
+#  OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS
+#  TO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE
+#  PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING,
+#  REPAIR OR CORRECTION.
+# 
+# The GNU GPL can be found at http://www.fsf.org/copyleft/gpl.html
+# 
+# -----------------------------------------------------------------------
+# Description
+#
+#
+# THIS IS A REFERENCE DESIGN BUILD SCRIPT, IT WORKS FOR ME BUT MAY NOT FOR YOU
+# IT IS INTENDED TO GIVE AN EXAMPLE OF HOW A SCRIPT LIKE THIS COULD BE BUILT.  IF IT WORKS
+# FOR YOU, GREAT!  IF NOT THEN MAKE WHATEVER ADJUSTMENTS TO IT YOU NEED TO GET IT WORKING!
+# ASK FOR HELP IN THE FORUMS IF NEEDED.
+#
+# REQUIRES: dcm.pl, build_dhcpd_conf module, working ISC dhcpd for the local server, sendEmail
+#
+# Since this script must restart the dhcpd daemon, it should be ran as the dhcp user or as root.
+#
+# dcm.pl should be working on your system and either in your path or you will need to put the full path to it in the DCM_PATH variable below.
+#
+# Remember that the checks done by dhcpd -t are only syntax checks.  They will not ensure that the content of your files is correct.
+# If you have missing records or incorrect data it could impact your environment.
+#
+# The local host name as determined using "hostname -f" must match the FQDN of the server in ONA.  It must be the PRIMARY name, not an CNAME
+# or alternate A record. You can also specify another name using the -s option and providing an FQDN from ONA.
+#
+# For ease of use, it is recommended to add /opt/ona/bin to your $PATH environment variable
+#
+# You should create a symlink for your system dhcpd.conf file, Probably in /etc/dhcpd3/dhcpd.conf depending on your system,
+# that points to the configuration file built by this script.  The config file built will be located in $ONA_PATH.
+#
+# A header file is required that will contain directives like "authoritative", ddns-update-style, or logging statements etc
+# in the main config file as these are out of scope for the ONA system to manage at this point.  You can also
+# define other options your site may require that are not possible to manage in ONA.
+# The header file will be built as an 'include' statement at the top of the generated config file.
+# Add the following line to your system dhcpd.conf file. Probably in /etc/dhcpd3/dhcpd.conf depending on your system.
+
+# You may need to configure directives like "authoritative", ddns-update-style, or logging statements etc in the main config file as these are
+# out of scope for the ONA system to manage at this point.
+# The placement of this line could vary depending on how your distro organizes dhcpd.  /etc/dhcpd3/dhcpd.conf should be used for ubuntu/debian based systems.
+#
+#     include "/opt/ona/etc/dhcpd/dhcpd.conf.ona";
+#
+# You will need to execute the following dcm command to automatically create the appropriate module entries:
+#
+# NOTE: Some distros use the Linux Terminal Server Project (LTSP) version of dhcp config file instead, be aware of that.
+# NOTE: to view example configs in the GUI you need to set build_dhcp_type to "isc" or "dhcpd" in the sys_config table, this is done by the installer.
+#
+# Batch mode [-b] is used to remotely execute this script and return a SUCCESS or FAILURE message only.  This can be
+# used by an ssh key execution for example.
+#
+# -----------------------------------------------------------------------
+# onabase should contain the path to your ONA install, usually /opt/ona
+[ ! -r /etc/onabase ] && echo "[$0] ERROR: Unable to read /etc/onabase." && exit 1
+ONABASE=`cat /etc/onabase`
+
+# this will default to placing data files in /opt/ona/etc/dhcpd, you can update the following for your system as needed
+# for things like chroot jails etc
+ONA_PATH="${ONABASE}/etc/dhcpd"
+
+# Get the local hosts FQDN.  It will be an assumption!! that it is the same as the hostname in ONA
+# Also, the use of hostname -f can vary from system type to system type.  be aware!
+SRV_FQDN=`hostname -f`
+
+# Path to the dcm.pl command.  Also include any options that might be needed
+DCM_PATH="${ONABASE}/bin/dcm.pl"
+
+# For now a path is required to a default header.
+# this will have things like the authoritative statement,ddns-update-style, and other required options
+# this header should contain things that are static and rarely change
+# it can also contain localized configuration not maintained by ONA
+# This value must not be blank
+HEADER_PATH="${ONA_PATH}/dhcpd.conf.ona.header"
+
+# Remove the temporary configuration files that are older than $DAYSOLD.  This uses the find
+# command to remove anything older than this amount of days.  These are configs that had an
+# error for some reason.
+DAYSOLD=30
+
+# The path to the system init script that is responsible for restarting the dhcpd service
+# also include the restart option to the init script that is appropriate for your system
+SYSTEMINIT="/etc/init.d/dhcpd restart"
+
+# The systems DHCPD binary file.  Enter full path if needed
+DHCPDBIN=/usr/sbin/dhcpd
+
+# Email settings for config_archive to send status information to (diffs etc)
+MAIL_SERVER=mail.example.com               # name or IP of the mail server to use
+MAIL_FROM=ona-build_dhcpd@$SRV_FQDN        # email address to use in the from field
+MAIL_TO=oncall@example.com                 # email address(es) to send our notifications to
+
+
+###################### No need to change anything below here ################################
+
+# This will log a message in a standardized way
+# Its job is simple.. take the message that was passed in and log it via some mechanism.
+# Currently, it echos to stdout and logs in syslog
+function ONA_LOG {
+    # Log it to the screen
+    [ $BATCHMODE ] || echo $(date +'%h %d %H:%M:%S') [ONA:$(basename $0)]: "$1"
+
+    # log it to syslog
+    logger -t [ONA:$(basename $0)] "$1"
+}
+
+# This function will exit with a status of 1 and if in batch mode, will print a success/fail message
+function ABEND {
+    [ $BATCHMODE ] && echo FAILURE
+    # send an email notification
+    sendEmail -s $MAIL_SERVER -f $MAIL_FROM -t $MAIL_TO \
+              -u "[ONA:$(basename $0)] $SRV_FQDN: Failure during DHCP rebuild." \
+              -m "The DHCP server '$SRV_FQDN' has encountered a failure during its last rebuild, please check the status of the server.  You can try the following command on this server to display why this configuration test failed: $DHCPDBIN -t -cf $ONA_PATH/dhcpd.conf.ona.$TMSTAMP"
+    if [ $? -ne 0 ]
+    then
+        ONA_LOG "ERROR => There was an issue sending the notification email."
+    fi
+    exit 1
+}
+
+#### Process the commandline options
+USAGE="
+Usage: `basename $0` [-s <FQDN>] [-b] [-d]
+
+  -s     FQDN of the server you wish to build DHCP configs for
+  -b     Enable batch mode (less logging for scripted runs)
+  -d     Enable debug output
+"
+
+while getopts "s:bd" options; do
+  case $options in
+    b ) BATCHMODE=1;;
+    d ) DEBUGON=1;;
+    s ) SRV_FQDN=$OPTARG;;
+    \? ) echo "$USAGE"
+         exit 1;;
+    * ) echo "$USAGE"
+         exit 1;;
+  esac
+done
+
+
+# Check that $ONA_PATH directory exists
+if ! test -d $ONA_PATH 
+then
+    ONA_LOG "ERROR => Unable to find directory '$ONA_PATH', please create it."
+    ABEND
+fi
+
+[ $BATCHMODE ] || ONA_LOG "INFO => Building ISC DHCPD config for $SRV_FQDN..."
+
+# Get a timestamp to name our temp file with
+TMSTAMP=`date +%Y%m%d%H%M%S`
+
+# Build the conf file
+# Start with including the local header file
+echo > $ONA_PATH/dhcpd.conf.ona.$TMSTAMP
+echo "include \"$HEADER_PATH\";" >> $ONA_PATH/dhcpd.conf.ona.$TMSTAMP
+echo >> $ONA_PATH/dhcpd.conf.ona.$TMSTAMP
+echo >> $ONA_PATH/dhcpd.conf.ona.$TMSTAMP
+
+# Get config from database and append it to our temp file
+if ! $DCM_PATH -r build_dhcpd_conf server=$SRV_FQDN >> $ONA_PATH/dhcpd.conf.ona.$TMSTAMP
+then
+    ONA_LOG "ERROR => Unable to build ISC dhcpd config file."
+    ABEND
+fi
+
+[ $DEBUGON ] && ONA_LOG "DEBUG => Testing new config files for SYNTAX only..."
+
+if ! test -x $DHCPDBIN
+then
+    ONA_LOG "ERROR => Unable to find DHCP binary '$DHCPDBIN'."
+    ABEND
+fi
+
+# Test that our new config is syntacticaly correct
+# If you are using a different dhcp.conf file that includes what is built from ONA you could
+# possibly run into issues where the syntax check passes but the restart fails.  This typically
+# happens when there is duplicate information in the two files
+if ! $DHCPDBIN -t -cf $ONA_PATH/dhcpd.conf.ona.$TMSTAMP > /dev/null 2>&1
+then
+    [ $DEBUGON ] && $DHCPDBIN -t -cf $ONA_PATH/dhcpd.conf.ona.$TMSTAMP 2>&1
+    ONA_LOG "ERROR => The resulting config files have a syntax error."
+    ABEND
+else
+    # Move the sucessfuly tested config file into the running config file
+    mv $ONA_PATH/dhcpd.conf.ona.$TMSTAMP $ONA_PATH/dhcpd.conf.ona
+
+    # Clean up old,failed, configs (only good for the next 100 years or so!)
+    find $ONA_PATH/dhcpd.conf.ona.20* -type f -mtime +$DAYSOLD -exec rm -f '{}' > /dev/null 2>&1 \;
+fi
+
+# Refresh the ISC dhcpd server
+if ! $SYSTEMINIT > /dev/null 2>&1
+then
+    ONA_LOG "ERROR => Unable to reload the dhcpd daemon using the command '$SYSTEMINIT'." 
+    ABEND
+else
+    [ $DEBUGON ] && ONA_LOG "DEBUG => Completed ISC DHCPD configuration extraction and daemon reload."
+    [ $BATCHMODE ] && echo "SUCCESS"
+    exit 0
+fi
