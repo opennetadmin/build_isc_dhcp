@@ -153,17 +153,19 @@ function ABEND {
 
 #### Process the commandline options
 USAGE="
-Usage: `basename $0` [-s <FQDN>] [-b] [-d]
+Usage: `basename $0` [-s <FQDN>] [-b] [-d] [-t]
 
   -s     FQDN of the server you wish to build DHCP configs for
   -b     Enable batch mode (less logging for scripted runs)
   -d     Enable debug output
+  -t     Test only, don't restart server process
 "
 
-while getopts "s:bd" options; do
+while getopts "s:bdt" options; do
   case $options in
     b ) BATCHMODE=1;;
     d ) DEBUGON=1;;
+    t ) TESTONLY=1;;
     s ) SRV_FQDN=$OPTARG;;
     \? ) echo "$USAGE"
          exit 1;;
@@ -223,6 +225,10 @@ else
     # Clean up old,failed, configs (only good for the next 100 years or so!)
     find $ONA_PATH/dhcpd.conf.ona.20* -type f -mtime +$DAYSOLD -exec rm -f '{}' > /dev/null 2>&1 \;
 fi
+
+# If we have the testonly option set, exit here so we dont reload the daemon
+[ $TESTONLY ] && ONA_LOG "INFO => Test only, not restarting daemon."
+[ $TESTONLY ] && exit 0
 
 # Refresh the ISC dhcpd server
 if ! $SYSTEMINIT > /dev/null 2>&1
