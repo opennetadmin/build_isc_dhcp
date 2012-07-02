@@ -138,3 +138,11 @@ Many modern linux systems use the /etc/cron.d method.  You can put ONA related c
     
     # Rebuild DHCPD configuration file and restart daemon every hour
     0 * * * * root /opt/ona/bin/build_dhcpd > /dev/null 2>&1
+
+IPv6
+----
+Initial IPv6 support is started but much more work to come.  Wanted to mention some IPv6 related items here.
+
+  * v6 support is still only partially implmented
+  * If you are running newer versions of ONA that support v6 then you will want to ensure that you don't define your ipv6 subnets on DHCP servers that service ipv4 addresses.  You will currently get a configuration that has mixed v4/v6 configuration which will not work properly. If you mix your subnets on a single server within ONA you will likely break your current system.  The latest version of this plugin (1.2) should help mitigate that issue, but just don't associate both types of subnets within ONA.
+  * At the moment an understanding of how fixed-address (aka MAC address) will work with IPv6 as it relates to the host-identifier will need to be worked through and understood for the proper method.  Here is a reference of the issue which does not seem to be fully resolved as of March 2012: https://lists.isc.org/pipermail/dhcp-users/2009-March/008678.html 
