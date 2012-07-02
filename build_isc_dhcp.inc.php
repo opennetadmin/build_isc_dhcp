@@ -248,11 +248,20 @@ function subnet_conf ($subnet=array(), $indent=0) {
     }
 
     $text   = "\n{$dent}# {$subnet['name']}\n";
-    $text  .= "{$dent}subnet ". long2ip($subnet['ip_addr']) ." netmask ".long2ip($subnet['ip_mask'])." {\n";
+    // Determine if this is a IPv6 address
+    if ($subnet['ip_addr'] > '4294967295') {
+        $text  .= "{$dent}subnet6 ". ip_mangle($subnet['ip_addr'], 'ipv6') ."/".ip_mangle($subnet['ip_mask'], 'cidr')." {\n";
+        // v6 does not allow a gateway defined, it uses the RA to do it.
+        $hasgatewayoption = 1;
+        $v6option = 'dhcp6.';
+    } else {
+        $text  .= "{$dent}subnet ". long2ip($subnet['ip_addr']) ." netmask ".long2ip($subnet['ip_mask'])." {\n";
+        $hasgatewayoption = 0;
+        $v6option = '';
+    }
 
     // Loop through all of the dhcp entries and print them
     $i = 0;
-    $hasgatewayoption = 0;
     do {
         list($status, $rows, $dhcp_entry) = ona_get_dhcp_option_entry_record(array('subnet_id' => $subnet['id']));
         printmsg("DEBUG => subnet_conf(): Processing option {$dhcp_entry['display_name']}", 3);
@@ -266,7 +275,7 @@ function subnet_conf ($subnet=array(), $indent=0) {
         list($status, $formatted_entry) = format_tag($dhcp_entry);
 
         if ($formatted_entry) {
-            $text .= "{$dent}    option {$dhcp_entry['name']} {$formatted_entry};\n";
+            $text .= "{$dent}    option {$v6option}{$dhcp_entry['name']} {$formatted_entry};\n";
         } else { $exit++; break; }
     } while ($i < $rows);
 
@@ -421,6 +430,9 @@ function build_hosts($server_id=0) {
 
     printmsg("DEBUG => build_hosts() Processing hosts for server: {$server_id}", 3);
 
+    // ipv6: for now we are going to skip over any v6 address space
+    //       need to pass in if we want v6 or not
+
     // For the given server, select all host entries that have mac addresses
     // This is to build the static, mac based, host entries
     // NOTE: I use the concat and inet_ntoa functions.. not sure how portable they really are.
@@ -441,7 +453,8 @@ function build_hosts($server_id=0) {
         AND     I.subnet_id IN (
                         SELECT  subnet_id
                         FROM    dhcp_server_subnets
-                        WHERE   host_id = {$server_id})
+                        WHERE   host_id = {$server_id}
+                        AND     ip_addr < 4294967295)
         ORDER BY I.ip_addr";
 
 
@@ -469,7 +482,13 @@ function build_hosts($server_id=0) {
 
         if ($last_host != $host['ip_addr']) {
             $text .= "host {$host['ip_addr']} {  # {$host['primary_dns_name']}\n";
+
+            // TODO: ipv6 may be fun here
+            // https://lists.isc.org/pipermail/dhcp-users/2009-February/008463.html
+            // https://lists.isc.org/pipermail/dhcp-users/2009-March/008678.html
+            // http://www.ietf.org/mail-archive/web/dhcwg/current/msg12455.html
             $text .= "    fixed-address {$host['ip_addr']};\n";
+
             // Currently we are not supporting other hardware types available
             // tokenring and fddi are other options than ethernet here,
             // if it is needed.. use the hardware type option. possible TODO to fix this
@@ -531,7 +550,7 @@ function build_dhcpd_conf($options="") {
     global $onadb;
 
     // Version - UPDATE on every edit!
-    $version = '1.06';
+    $version = '1.07';
 
     // Exit status of the function
     $exit = 0;
@@ -567,6 +586,9 @@ EOM
 
         ));
     }
+
+    // TODO: ipv6 need to pass in if we want v4 or v6.. default to v4 for now. 
+    //       looks like you cant have a mixed config
 
     // Debugging
     printmsg("DEBUG => Building DHCP config for: {$options['server']}", 3);
