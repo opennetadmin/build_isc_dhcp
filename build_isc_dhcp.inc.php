@@ -507,7 +507,7 @@ function build_hosts($server_id=0) {
             // format the tag appropriatly
             list($status, $formatted_entry) = format_tag($dhcp_entry);
 
-            if ($formatted_entry) {
+            if ($formatted_entry != '') {
                 $text .= "    option {$dhcp_entry['name']} {$formatted_entry};\n";
             } else { $exit++; break; }
         }
@@ -550,7 +550,7 @@ function build_dhcpd_conf($options="") {
     global $onadb;
 
     // Version - UPDATE on every edit!
-    $version = '1.07';
+    $version = '1.08';
 
     // Exit status of the function
     $exit = 0;
