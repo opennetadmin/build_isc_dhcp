@@ -550,7 +550,7 @@ function build_dhcpd_conf($options="") {
     global $onadb;
 
     // Version - UPDATE on every edit!
-    $version = '1.08';
+    $version = '1.09';
 
     // Exit status of the function
     $exit = 0;
@@ -593,7 +593,7 @@ EOM
     // Debugging
     printmsg("DEBUG => Building DHCP config for: {$options['server']}", 3);
 
-    // Validate that there is already a host named $name in the zone $zone_id.
+    // Validate that there is already a host named $options['server'].
     list($status, $rows, $host) = ona_find_host($options['server']);
 
     if (!$host['id']) {
@@ -602,7 +602,8 @@ EOM
 
     // Now determine if that host is a valid server
     list($status, $dhcp_rows, $dhcp_server) = db_get_records($onadb, 'dhcp_server_subnets', array('host_id' => $host['id']), '');
-    if (!$dhcp_rows) {
+    list($status, $dhcpf_rows, $dhcpf_server) = db_get_records($onadb, 'dhcp_failover_groups', "primary_server_id = {$host['id']} or secondary_server_id = {$host['id']}", '');
+    if ($dhcp_rows == 0 and $dhcpf_rows == 0) {
         return(array(3, "ERROR => Specified host is not a DHCP server: {$options['server']}\n"));
     }
 
