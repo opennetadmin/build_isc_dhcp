@@ -450,11 +450,24 @@ function build_hosts($server_id=0) {
         AND     I.host_id = H.id
         AND     D.domain_id = Z.id
         AND     D.id = H.primary_dns_id
-        AND     I.subnet_id IN (
+        AND     (
+                 ( I.subnet_id IN (
                         SELECT  subnet_id
                         FROM    dhcp_server_subnets
                         WHERE   host_id = {$server_id}
                         AND     ip_addr < 4294967295)
+                 )
+                 OR
+                 ( I.subnet_id IN (
+                        SELECT  subnet_id
+                        FROM    dhcp_pools
+                        WHERE   dhcp_failover_group_id IN (
+                                SELECT id
+                                FROM dhcp_failover_groups
+                                WHERE   primary_server_id = {$server_id}
+                                OR      secondary_server_id = {$server_id}))
+                 )
+                )
         ORDER BY I.ip_addr";
 
 
