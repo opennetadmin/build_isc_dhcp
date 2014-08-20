@@ -699,7 +699,7 @@ EOM
             if ($i >= 1) {$text .= "}\n\n";}
 
             // print the opening statement for the shared network block and strip characters that may cause errors
-	    $text .= "shared-network " . ereg_replace('[^A-Za-z0-9_-]', '', "{$vlan['vlan_campus_name']}-{$vlan['number']}-{$vlan['name']}") . " {\n";
+	    $text .= "shared-network " . preg_replace('/[^A-Za-z0-9_-]/', '', "{$vlan['vlan_campus_name']}-{$vlan['number']}-{$vlan['name']}") . " {\n";
         }
 
         // print the subnet block for the current subnet in the loop
