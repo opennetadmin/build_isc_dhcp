@@ -563,7 +563,7 @@ function build_dhcpd_conf($options="") {
     global $onadb;
 
     // Version - UPDATE on every edit!
-    $version = '1.09';
+    $version = '1.10';
 
     // Exit status of the function
     $exit = 0;
