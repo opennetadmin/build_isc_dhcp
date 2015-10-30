@@ -18,19 +18,21 @@ Install
   * Click the install icon for the plugin which should be listed by the plugin name 
   * Follow any instructions it prompts you with.
   * Install the $ONABASE/www/local/plugins/build_isc_dhcp/build_dhcpd script on your DHCP server. It is suggested to place it in /opt/ona/bin
-  * Modify the variables at the top of the build_dhcpd script to suit your environment.
+  * Copy the variables at the top of the build_dhcpd script and add them to `/opt/ona/etc/build_dhcpd.conf` making adjustments as needed.
+  * If you wish you can just modify the variables at the top of the build_dhcpd script to suit your environment instead of making the .conf file above.
 
 Usage
 -----
 First off, you must have at least one subnet defined in the database as well as a host definition for the server you will be running the DHCP server on.  This host definition should have the same name and IP address as what your server is actually configured to use.  
 
-The host within ONA should be defined as a DHCP server for whatever subnets you expect it to be responsible for.  You must also have a default gateway defined for the subnet and any DHCP pools that may exist.  The "make" process above should have also created a system configuration variable called "build_dhcp_type" with a value of "isc".
+The host within ONA should be defined as a DHCP server for whatever subnets you expect it to be responsible for.  You must also have a default gateway defined for the subnet and any DHCP pools that may exist.  The install process above should have also created a system configuration variable called "build_dhcp_type" with a value of "isc".
 
 You should now see the configuration being built real time in the web interface each time you select the server host and view its DHCP server display page.
 
-This now also exposes the [[dcm.pl]] module called _build_dhcpd_.  It is used by the build_dhcpd script to extract the configuration.  It is also used by the web interface to generate configuration data.
+This now also exposes the [dcm.pl](https://github.com/opennetadmin/dcm) module called _build_dhcpd_.  It is used by the build_dhcpd script to extract the configuration.  It is also used by the web interface to generate configuration data.
 
-There are a few configuration options in the build script that should be examined.  Edit the file `/opt/ona/bin/build_dhcpd` and adjust the following options as needed:
+There are a few configuration options in the build script that should be examined.  Edit the variables at the top of the file `/opt/ona/bin/build_dhcpd`
+or better yet, add the following to `/opt/ona/etc/build_dhcpd.conf` with adjusted options as needed:
     # this will default to placing data files in /opt/ona/etc/dhcpd, you can update the following for your system as needed
     # for things like chroot jails etc
     ONA_PATH="${ONABASE}/etc/dhcpd"
@@ -40,8 +42,7 @@ There are a few configuration options in the build script that should be examine
     SRV_FQDN=`hostname -f`
     
     # Path to the dcm.pl command.  Also include any options that might be needed
-    # this uses the sys_build user to process this task.
-    DCM_PATH="${ONABASE}/bin/dcm.pl -l sys_build"
+    DCM_PATH="${ONABASE}/bin/dcm.pl"
     
     # For now a path is required to a default header.
     # this will have things like the authoritative statement,ddns-update-style, and other required options

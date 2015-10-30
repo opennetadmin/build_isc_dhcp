@@ -186,7 +186,7 @@ if (file_exists($reqfile)) {
 $window['html'] .= "<br><b>Disabling install script:</b><br>";
 // If there were no errors, move this install file out of the way.
 if (!$stat) {
-    $window['html'] .= "&nbsp;&nbsp;&nbsp;&nbsp;<img src='{$images}/silk/accept.png' border='0'>Moved install files.<br><br><center><b>Install complete. Not disabling install script, this way you can always find where the build script is located.<br>Even though this install may look like it failed.. everything is OK to proceed.<br><br>You should read the documentation located <a href='http://opennetadmin.com/docs/plugins/build_isc_dhcpd'>HERE</a> for further install instructions.</b><br><br><a onclick=\"removeElement('{$window_name}');\">CLOSE WINDOW</a><br></center>";
+    $window['html'] .= "&nbsp;&nbsp;&nbsp;&nbsp;<img src='{$images}/silk/accept.png' border='0'>Moved install files.<br><br><center><b>Install complete. Not disabling install script, this way you can always find where the build script is located.<br>Even though this install may look like it failed.. everything is OK to proceed.<br><br>You should read the documentation located <a href='https://github.com/opennetadmin/{$plugin_name}/wiki'>HERE</a> for further install instructions.</b><br><br><a onclick=\"removeElement('{$window_name}');\">CLOSE WINDOW</a><br></center>";
 } else {
     $window['html'] .= "&nbsp;&nbsp;&nbsp;&nbsp;<img src='{$images}/silk/error.png' border='0'> Not disabling install script due to previous errors.<br><br><center><a onclick=\"removeElement('{$window_name}');toggle_window('{$window_name}');\">Fix the errors and then click to TRY AGAIN</a></center>";
 

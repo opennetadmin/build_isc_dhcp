@@ -75,8 +75,6 @@
 #
 #     include "/opt/ona/etc/dhcpd/dhcpd.conf.ona";
 #
-# You will need to execute the following dcm command to automatically create the appropriate module entries:
-#
 # NOTE: Some distros use the Linux Terminal Server Project (LTSP) version of dhcp config file instead, be aware of that.
 # NOTE: to view example configs in the GUI you need to set build_dhcp_type to "isc" or "dhcpd" in the sys_config table, this is done by the installer.
 #
@@ -88,6 +86,10 @@
 [ ! -r /etc/onabase ] && echo "[$0] ERROR: Unable to read /etc/onabase." && exit 1
 ONABASE=`cat /etc/onabase`
 
+########### Configuration ##############
+# You should take the following configuration items and place them in $ONABASE/etc/build_dhcpd.conf
+# If that file is not found the following defaults will be used
+#
 # this will default to placing data files in /opt/ona/etc/dhcpd, you can update the following for your system as needed
 # for things like chroot jails etc
 ONA_PATH="${ONABASE}/etc/dhcpd"
@@ -123,8 +125,14 @@ MAIL_SERVER=mail.example.com               # name or IP of the mail server to us
 MAIL_FROM=ona-build_dhcpd@$SRV_FQDN        # email address to use in the from field
 MAIL_TO=oncall@example.com                 # email address(es) to send our notifications to
 
+########## END Configuration ####################
 
 ###################### No need to change anything below here ################################
+# Pull in the config file if there is one
+if [ -f $ONABASE/etc/build_dhcpd.conf ]
+then
+  . $ONABASE/etc/build_dhcpd.conf
+fi
 
 # This will log a message in a standardized way
 # Its job is simple.. take the message that was passed in and log it via some mechanism.
