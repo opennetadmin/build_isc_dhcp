@@ -1,18 +1,5 @@
 <?php
 
-// Lets do some initial install related stuff
-if (file_exists(dirname(__FILE__)."/install.php")) {
-    printmsg("DEBUG => Found install file for ".basename(dirname(__FILE__))." plugin.", 1);
-    include(dirname(__FILE__)."/install.php");
-} else {
-
-// Place initial popupwindow content here if this plugin uses one.
-
-
-}
-
-// Make sure we have necessary functions & DB connectivity
-require_once($conf['inc_functions_db']);
 
 //////////////////////////////////////////////////////////////////////
 //  Function: build_global($server_id=0)
@@ -39,7 +26,7 @@ WHERE host_id = 0
 and subnet_id = 0
 and server_id = {$server_id}", '');
 
-    printmsg('DEBUG => build_global() Processing global options.', 5);
+    printmsg('Processing global options.', 'debug');
     //process the entries
     if ($rows) {
         foreach ($dhcp_entries as $entry) {
@@ -67,7 +54,7 @@ and server_id = {$server_id}", '');
             // check that if we are to use an integer type, that the value is really an integer
             if ($dhcp_type['type'] == 'N') {
                 if (!is_numeric($formatted_entry)) {
-                   printmsg("DEBUG => build_global() The option {$dhcp_type['name']} is not a numeric value.", 5);
+                   printmsg("The option {$dhcp_type['name']} is not a numeric value.", 'debug');
                    $out_text .= "### option {$dhcp_type['name']} {$formatted_entry};  #ERROR: value should be numeric.\n";
                    continue;
                 }
@@ -82,7 +69,7 @@ and server_id = {$server_id}", '');
     // print some extra space
     $out_text .= "\n";
 
-    return(array($exit, $out_text));
+    return(array(0, $out_text));
 }
 
 
@@ -95,7 +82,7 @@ and server_id = {$server_id}", '');
 //  Builds the proper statement for a dhcp pool
 ///////////////////////////////////////////////////////////////////////
 function process_dhcp_pool($pool=array(), $indent=0) {
-    printmsg("DEBUG => process_dhcp_pool(\$pool, $indent) called", 5);
+    printmsg("process_dhcp_pool(\$pool, $indent) called", 'debug');
 
     // Validate input
     if (! (is_array($pool) and (count($pool) > 0)) ) {
@@ -142,7 +129,6 @@ function process_dhcp_pool($pool=array(), $indent=0) {
 //  primary dns name and primary ip address.
 ///////////////////////////////////////////////////////////////////////
 function get_server_name_ip($server_id) {
-    printmsg("DEBUG => get_server_name_ip(\$server_id = $server_id) called", 5);
     list($status, $rows, $host)      = ona_get_host_record(array('id' => $server_id));
     list($status, $rows, $interface) = ona_get_interface_record(array('host_id' => $server_id));
     return(array($host['fqdn'], $interface['ip_addr']));
@@ -198,10 +184,10 @@ function format_tag ($dhcp_entry=array()) {
     else if ($dhcp_entry['type'] == 'I' or
              $dhcp_entry['type'] == 'N' or
              $dhcp_entry['type'] == 'B') {
-        $formatted_entry = $dhcp_entry['value'];
+               $formatted_entry = $dhcp_entry['value'];
     }
     else {
-        printmsg("WARNING => format_tag() Found unknown tag_type: {$dhcp_entry['type']} {$dhcp_entry['value']}", 1);
+        printmsg("Found unknown tag_type: {$dhcp_entry['type']} {$dhcp_entry['value']}", 'notice');
     }
 
     return(array(0,$formatted_entry));
@@ -231,8 +217,6 @@ function format_tag ($dhcp_entry=array()) {
 //  Example: list($status, $text) = subnet_conf($subnet_record, 1);
 ///////////////////////////////////////////////////////////////////////
 function subnet_conf ($subnet=array(), $indent=0) {
-    printmsg("DEBUG => subnet_conf(\$subnet, $indent) called", 5);
-   // global $dhcp_entry_options;
     global $self;
     $exit = 0;
 
@@ -264,11 +248,11 @@ function subnet_conf ($subnet=array(), $indent=0) {
     $i = 0;
     do {
         list($status, $rows, $dhcp_entry) = ona_get_dhcp_option_entry_record(array('subnet_id' => $subnet['id']));
-        printmsg("DEBUG => subnet_conf(): Processing option {$dhcp_entry['display_name']}", 3);
+        printmsg("Processing option {$dhcp_entry['display_name']}", 'debug');
         if (!$rows) { break; }
         if ($status) { $exit++; break; }
         // if the current dhcp entry is the "Default Gateway" option then set hasgatewayoption to 1
-        if (strpos($dhcp_entry['name'], 'router') !== false) {printmsg("DEBUG => subnet_conf(\$subnet, $indent): --------.", 5);$hasgatewayoption = 1;}
+        if (strpos($dhcp_entry['name'], 'router') !== false) {$hasgatewayoption = 1;}
         $i++;
 
         // format the tag appropriatly
@@ -283,7 +267,7 @@ function subnet_conf ($subnet=array(), $indent=0) {
     $i = 0;
     do {
         list($status, $poolrows, $pool) = ona_get_dhcp_pool_record(array('subnet_id' => $subnet['id']));
-        if (!$rows) { break; }
+        if (!$poolrows) { break; }
         if ($status) { $exit++; break; }
         $i++;
 
@@ -291,14 +275,14 @@ function subnet_conf ($subnet=array(), $indent=0) {
 
         // if there is no failover group assignment and this pool is related to your server, print it
         if ($server_subnet['host_id'] == $self['serverid'] && $pool['dhcp_failover_group_id'] == 0) {
-            printmsg("DEBUG => subnet_conf(\$subnet, $indent): Found pool with no failovergroup.", 5);
+            printmsg("Found pool with no failovergroup.", 'debug');
             list($status, $pool_entry) = process_dhcp_pool($pool, $indent);
             $text .= $pool_entry;
         }
 
         // if there is a failover group assignment, print the pool
         if ($pool['dhcp_failover_group_id'] != 0) {
-            printmsg("DEBUG => subnet_conf(\$subnet, $indent): Found pool with a failovergroup", 5);
+            printmsg("Found pool with a failovergroup", 'debug');
             list($status, $pool_entry) = process_dhcp_pool($pool, $indent);
             $text .= $pool_entry;
         }
@@ -314,7 +298,7 @@ function subnet_conf ($subnet=array(), $indent=0) {
         return(array($exit, $text));
     }
     else {
-        printmsg("ERROR => subnet_conf({$subnet['name']}): Not enabling subnet, no gateway option defined. ", 0);
+        printmsg("Not enabling subnet ({$subnet['name']}), no gateway option defined.", 'notice');
         $text = "\n{$dent}# WARNING => Subnet {$subnet['name']} has no default gateway opiton defined, skipping...\n";
         return(array($exit, $text));
     }
@@ -344,7 +328,6 @@ function subnet_conf ($subnet=array(), $indent=0) {
 //
 ///////////////////////////////////////////////////////////////////////
 function ona_dhcp_build_failover_group($server_id=0) {
-    printmsg("DEBUG => ona_dhcp_build_failover_group($server_id) called", 5);
 
     // Validate input
     if ($server_id == 0) {
@@ -428,7 +411,8 @@ function build_hosts($server_id=0) {
     global $onadb;
     global $dhcp_entry_options;
 
-    printmsg("DEBUG => build_hosts() Processing hosts for server: {$server_id}", 3);
+    $exit = 0;
+    printmsg("Processing hosts for server: {$server_id}", 'debug');
 
     // ipv6: for now we are going to skip over any v6 address space
     //       need to pass in if we want v6 or not
@@ -477,8 +461,8 @@ function build_hosts($server_id=0) {
     $rs = $onadb->Execute($q);
     if ($rs === false or (!$rs->RecordCount())) {
         $self['error'] = 'ERROR => build_hosts(): SQL query failed: ' . $onadb->ErrorMsg(); 
-        printmsg($self['error'], 0);
-        $exit += 1;
+        printmsg($self['error'], 'error');
+        $exit++;
     }
     $rows = $rs->RecordCount();
 
@@ -488,7 +472,7 @@ function build_hosts($server_id=0) {
     // Loop through the record set
     $last_host = 0;
     while ($host = $rs->FetchRow()) {
-        printmsg('DEBUG => build_host() Processing host: '. $host['primary_dns_name'], 5);
+        printmsg('Processing host: '. $host['primary_dns_name'], 'debug');
 
         // print closing brace only if this is a new host, AND it is not the first row
         if ($last_host != $host['ip_addr'] && $last_host != 0) { $text .= "}\n\n"; }
@@ -563,54 +547,29 @@ function build_dhcpd_conf($options="") {
     global $onadb;
 
     // Version - UPDATE on every edit!
-    $version = '1.10';
+    $version = '2.0';
 
     // Exit status of the function
     $exit = 0;
 
-    printmsg('DEBUG => build_dhcpd_conf('.$options.') called', 3);
-
-    // Parse incoming options string to an array
-    $options = parse_options($options);
+    printmsg('Called with options: ('.implode (";",$options).')', 'info');
 
     // Return the usage summary if we need to
-    if ($options['help'] or !$options['server']) {
-        // NOTE: Help message lines should not exceed 80 characters for proper display on a console
-        return(array(1, 
-<<<EOM
-
-build_dhcpd_conf-v{$version}
-Builds configuration for dhcpcd from the database
-
-  Synopsis: build_dhcpd_conf [KEY=VALUE] ...
-
-  Required:
-    server=NAME[.DOMAIN] or ID    Build conf by hostname or HOST_ID
-
-  Optional:
-    header_path=PATH              Path to the server local header to include
-
-  Notes:
-    * Specified host must be a valid DHCP server
-    * header_path is a file on the DHCP server.  It will be defined at
-      the very top of your configuration using the DHCP "include" directive.
-\n
-EOM
-
-        ));
+    if (!isset($options['server'])) {
+        return(array(1, 'Insufficent parameters'));
     }
 
     // TODO: ipv6 need to pass in if we want v4 or v6.. default to v4 for now. 
     //       looks like you cant have a mixed config
 
     // Debugging
-    printmsg("DEBUG => Building DHCP config for: {$options['server']}", 3);
+    printmsg("Building DHCP config for: {$options['server']}", 'debug');
 
     // Validate that there is already a host named $options['server'].
     list($status, $rows, $host) = ona_find_host($options['server']);
 
     if (!$host['id']) {
-        return(array(2, "ERROR => No such host: {$options['server']}\n"));
+        return(array(2, "No such host: {$options['server']}"));
     }
 
     // Now determine if that host is a valid server
@@ -624,7 +583,7 @@ EOM
     $self['serverid']=$host['id'];
 
     // Start an output variable with build timestamp
-    $text .= "###### DO NOT EDIT THIS FILE ###### \n";
+    $text = "###### DO NOT EDIT THIS FILE ###### \n";
     $text .= "# dhcpd.conf file for {$host['fqdn']} built on " . date($conf['date_format']) . "\n#\n";
     $text .= "# This file is built by an automated script.  Any change to this \n";
     $text .= "# file will be lost at the next build.\n\n";
@@ -654,7 +613,7 @@ EOM
     $vlananchor = '';
 
     // Loop through all of the vlan subnets and print them
-    printmsg("DEBUG => Processing all Shared (VLAN) Subnets", 1);
+    printmsg("Processing all Shared (VLAN) Subnets", 'info');
 
     $i = 0;
     do {
@@ -672,24 +631,24 @@ EOM
                                                              'subnets',
                                                              'vlan_id ASC');
         if ($status) {
-            printmsg($self['error'], 0);
+            printmsg($self['error'], 'error');
             $exit += $status;
         }
 
         if ($rows == 0) {
-            printmsg("DEBUG => build_dhcpd_conf(): Found no shared subnets.", 3);
+            printmsg("Found no shared subnets.", 'info');
             break;
         }
         else if ($i == 0) {
             $text .= "# --------SHARED SUBNETS (count={$rows})--------\n\n";
         }
 
-        printmsg("DEBUG => Processing vlan subnet " . ($i + 1) . " of {$rows}", 3);
+        printmsg("Processing vlan subnet " . ($i + 1) . " of {$rows}", 'debug');
 
         // pull info about the vlan itself
         list($status, $vlanrows, $vlan) = ona_get_vlan_record(array('id' => $vlan_subnet['vlan_id']));
         if ($status) {
-            printmsg($self['error'], 0);
+            printmsg($self['error'], 'error');
             $exit += $status;
         }
 
@@ -699,13 +658,13 @@ EOM
             if ($i >= 1) {$text .= "}\n\n";}
 
             // print the opening statement for the shared network block and strip characters that may cause errors
-	    $text .= "shared-network " . preg_replace('/[^A-Za-z0-9_-]/', '', "{$vlan['vlan_campus_name']}-{$vlan['number']}-{$vlan['name']}") . " {\n";
+            $text .= "shared-network " . preg_replace('/[^A-Za-z0-9_-]/', '', "{$vlan['vlan_campus_name']}-{$vlan['number']}-{$vlan['name']}") . " {\n";
         }
 
         // print the subnet block for the current subnet in the loop
         list($status, $subnetblock) = subnet_conf($vlan_subnet,1);
         if ($status) {
-            printmsg("ERROR => subnet_conf() returned an error: vlan subnet: {$vlan_subnet['name']}", 0);
+            printmsg("Returned an error: vlan subnet: {$vlan_subnet['name']}", 'error');
             $exit += $status;
         }
         else {
@@ -727,7 +686,7 @@ EOM
 
 
     // Loop through all of the NON vlan subnets and print them
-    printmsg("DEBUG => Processing all Non-Shared (Standard) Subnets", 1);
+    printmsg("Processing all Non-Shared (Standard) Subnets", 'info');
 
     // We do our own sql query here because it makes more sense than calling ona_get_record() a zillion times ;)
     $q = "SELECT *
@@ -747,8 +706,8 @@ EOM
           ORDER BY name ASC";
     $rs = $onadb->Execute($q);
     if ($rs === false) {
-        $self['error'] = 'ERROR => build_dhcpd_conf(): standard_subnets: SQL query failed: ' . $onadb->ErrorMsg(); 
-        printmsg($self['error'], 0);
+        $self['error'] = 'Standard_subnets: SQL query failed: ' . $onadb->ErrorMsg(); 
+        printmsg($self['error'], 'error');
         $exit += 1;
     }
     $rows = $rs->RecordCount();
@@ -757,12 +716,12 @@ EOM
     $i = 0;
     // Loop through the record set
     while ($std_subnet = $rs->FetchRow()) {
-        printmsg("DEBUG => build_dhcpd_conf() Processing standard subnet " . ($i + 1) . " of {$rows}", 3);
+        printmsg("Processing standard subnet " . ($i + 1) . " of {$rows}", 'debug');
 
         // print the subnet info for the current subnet in the loop
         list($status, $subnetblock) = subnet_conf($std_subnet,0);
         if ($status) {
-            printmsg("ERROR => subnet_conf() returned an error: non-vlan subnet: {$std_subnet['description']}", 0);
+            printmsg("Returned an error: non-vlan subnet: {$std_subnet['description']}", 'error');
             $exit += $status;
         }
         else {
@@ -783,8 +742,3 @@ EOM
     return(array($exit, $text));
 
 }
-
-
-
-
-?>

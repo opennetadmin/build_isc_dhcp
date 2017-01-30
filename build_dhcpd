@@ -46,11 +46,9 @@
 # FOR YOU, GREAT!  IF NOT THEN MAKE WHATEVER ADJUSTMENTS TO IT YOU NEED TO GET IT WORKING!
 # ASK FOR HELP IN THE FORUMS IF NEEDED.
 #
-# REQUIRES: dcm.pl, build_dhcpd_conf module, working ISC dhcpd for the local server, sendEmail
+# REQUIRES: build_dhcpd_conf module, working ISC dhcpd for the local server, sendEmail
 #
 # Since this script must restart the dhcpd daemon, it should be ran as the dhcp user or as root.
-#
-# dcm.pl should be working on your system and either in your path or you will need to put the full path to it in the DCM_PATH variable below.
 #
 # Remember that the checks done by dhcpd -t are only syntax checks.  They will not ensure that the content of your files is correct.
 # If you have missing records or incorrect data it could impact your environment.
@@ -99,7 +97,9 @@ ONA_PATH="${ONABASE}/etc/dhcpd"
 SRV_FQDN=`hostname -f`
 
 # Path to the dcm.pl command.  Also include any options that might be needed
-DCM_PATH="${ONABASE}/bin/dcm.pl"
+API_TOKEN="<YOU MUST GENERATE ONE!>"
+# FIXTHIS!!!
+#DCM_PATH="${ONABASE}/bin/dcm.pl"
 
 # For now a path is required to a default header.
 # this will have things like the authoritative statement,ddns-update-style, and other required options

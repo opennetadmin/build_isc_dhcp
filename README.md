@@ -11,25 +11,21 @@ Install
   * Ensure you have the following prerequisites installed:
     * An ISC DHCP server. It is not required to be on the same host as the ONA system.
     * `sendEmail` for notification messages. [Download here](http://caspian.dotconf.net/menu/Software/SendEmail/) or use the package from your distribution.
-    * A functioning dcm.pl install on your DHCP server.
   * Download the archive and place it in your $ONABASE/www/local/plugins directory, the directory must be named `build_isc_dhcp`
   * Make the plugin directory owned by your webserver user I.E.: `chown -R www-data /opt/ona/www/local/plugins/build_isc_dhcp`
-  * From within the GUI, click _Plugins->Manage Plugins_ while logged in as an admin user
-  * Click the install icon for the plugin which should be listed by the plugin name 
-  * Follow any instructions it prompts you with.
   * Install the $ONABASE/www/local/plugins/build_isc_dhcp/build_dhcpd script on your DHCP server. It is suggested to place it in /opt/ona/bin
-  * Copy the variables at the top of the build_dhcpd script and add them to `/opt/ona/etc/build_dhcpd.conf` making adjustments as needed.
+  * Copy the variables at the top of the `build_dhcpd` script and add them to `/opt/ona/etc/build_dhcpd.conf` making adjustments as needed.
   * If you wish you can just modify the variables at the top of the build_dhcpd script to suit your environment instead of making the .conf file above.
 
 Usage
 -----
-First off, you must have at least one subnet defined in the database as well as a host definition for the server you will be running the DHCP server on.  This host definition should have the same name and IP address as what your server is actually configured to use.  
+First off, you must have at least one subnet defined in the database as well as a host definition for the server you will be running the DHCP server on.  This host definition should have the same name and IP address as what your server is actually configured to use.
 
 The host within ONA should be defined as a DHCP server for whatever subnets you expect it to be responsible for.  You must also have a default gateway defined for the subnet and any DHCP pools that may exist.  The install process above should have also created a system configuration variable called "build_dhcp_type" with a value of "isc".
 
 You should now see the configuration being built real time in the web interface each time you select the server host and view its DHCP server display page.
 
-This now also exposes the [dcm.pl](https://github.com/opennetadmin/dcm) module called _build_dhcpd_.  It is used by the build_dhcpd script to extract the configuration.  It is also used by the web interface to generate configuration data.
+This now also exposes the [dcm.pl](https://github.com/opennetadmin/dcm) module called `build_dhcpd`.  It is used by the `build_dhcpd` script to extract the configuration.  It is also used by the web interface to generate configuration data.
 
 There are a few configuration options in the build script that should be examined.  Edit the variables at the top of the file `/opt/ona/bin/build_dhcpd`
 or better yet, add the following to `/opt/ona/etc/build_dhcpd.conf` with adjusted options as needed:
