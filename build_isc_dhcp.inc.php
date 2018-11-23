@@ -446,6 +446,7 @@ function build_hosts($server_id=0) {
                 dns D,
                 domains Z,
                 interfaces I LEFT OUTER JOIN dhcp_option_entries B ON I.host_id = B.host_id
+                LEFT JOIN dhcp_options opts ON B.dhcp_option_id = opts.id
         WHERE   I.mac_addr NOT like ''
         AND     I.host_id = H.id
         AND     D.domain_id = Z.id
@@ -468,7 +469,7 @@ function build_hosts($server_id=0) {
                                 OR      secondary_server_id = {$server_id}))
                  )
                 )
-        ORDER BY I.ip_addr";
+        ORDER BY I.ip_addr, opts.number";
 
 
 
