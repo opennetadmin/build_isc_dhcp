@@ -263,7 +263,10 @@ function subnet_conf ($subnet=array(), $indent=0) {
     // Loop through all of the dhcp entries and print them
     $i = 0;
     do {
-        list($status, $rows, $dhcp_entry) = ona_get_dhcp_option_entry_record(array('subnet_id' => $subnet['id']));
+        list($status, $rows, $dhcp_entry) = ona_get_record(
+            array('e.subnet_id' => $subnet['id']),
+            'dhcp_option_entries e LEFT JOIN dhcp_options o ON e.dhcp_option_id = o.id',
+            'o.number');
         printmsg("DEBUG => subnet_conf(): Processing option {$dhcp_entry['display_name']}", 3);
         if (!$rows) { break; }
         if ($status) { $exit++; break; }
