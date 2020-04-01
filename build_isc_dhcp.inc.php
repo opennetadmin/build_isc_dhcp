@@ -190,6 +190,17 @@ function format_tag ($dhcp_entry=array()) {
             $formatted_entry = ltrim($dhcp_entry['value']);
         }
     }
+    // Special case for domain-search
+    else if ($dhcp_entry['name'] == 'domain-search') {
+      // clean comma space
+      $dhcp_entry['value'] = preg_replace('/,\s+/', ',', ltrim($dhcp_entry['value']));
+      // clean space comma
+      $dhcp_entry['value'] = preg_replace('/\s,+/', ',', ltrim($dhcp_entry['value']));
+      // clean just a comma
+      $dhcp_entry['value'] = preg_replace('/,+/', '","', ltrim($dhcp_entry['value']));
+      // clean all whitespace and wrap final quotes around it all
+      $formatted_entry = '"' . preg_replace('/\s+/', '","', ltrim($dhcp_entry['value'])) . '"';
+    }
     else if ($dhcp_entry['type'] == 'S') {
         // If it is a string then quote it
         $formatted_entry = '"' . $dhcp_entry['value'] . '"';
