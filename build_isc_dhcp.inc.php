@@ -784,6 +784,82 @@ EOM
     }
     $rs->Close();
 
+
+    /////////////////////////////// local subnets //////////////////////////////////////////
+
+    // If this server is not serving DHCP to any of its local subnets
+    //  eg. queried via DHCP relaying only
+    //  we have to add a empty subnet definition for its local network
+    //  otherwise dhcpd will not start
+
+    $local_subnets = array();
+
+    // get list of interfaces for this host:
+    do {
+        list($status, $rows, $iface) =
+            ona_get_interface_record(array('host_id' => $host['id']));
+
+        if ($status) {
+            printmsg("ERROR => failed to retrieve interfaces for {$host['id']}", 0);
+            $exit += $status;
+        }
+
+        printmsg("DEBUG => build_dhcpd_conf() {$host['id']} interface in subnet {$iface['subnet_id']}", 2);
+        array_push($local_subnets, $iface['subnet_id']);
+
+        $i++;
+    } while ($i < $rows);
+
+    $subnet_list = join(', ', $local_subnets);
+
+    // look for local subnets this server is serving DHCP for:
+    $q = "SELECT subnet_id
+          FROM dhcp_server_subnets
+          WHERE subnet_id IN ({$subnet_list})
+          AND host_id = {$host['id']}
+          UNION
+          SELECT subnet_id
+          FROM dhcp_pools
+          WHERE subnet_id IN ({$subnet_list})
+          AND dhcp_failover_group_id IN (SELECT id
+                                         FROM dhcp_failover_groups
+                                         WHERE primary_server_id = {$host['id']}
+                                         OR secondary_server_id = {$host['id']})";
+
+    $rs = $onadb->Execute($q);
+    if ($rs === false) {
+        $self['error'] = 'ERROR => build_dhcpd_conf(): local_subnets: SQL query failed: ' .
+            $onadb->ErrorMsg(). ":\n" . $q;
+        printmsg($self['error'], 0);
+        $exit += 1;
+    } elseif ($rs->RecordCount() == 0) {
+
+        // we have not found any local subnet that this host acts as a DHCP server for
+        //  therefore we add all local subnets
+
+        $text .= "# LOCAL SUBNETS (count={$rows})\n";
+        foreach ($local_subnets as $subnet_id) {
+
+            list($status, $rows, $subnet) =  ona_get_subnet_record(array('id' => $subnet_id));
+            printmsg("DEBUG => build_dhcpd_conf() Processing local subnet {$subnet['name']}", 3);
+
+            // print the subnet info for the current subnet in the loop
+            // TODO: the subnet definition should be empty
+            list($status, $subnetblock) = subnet_conf($subnet,0);
+            if ($status) {
+                printmsg("ERROR => subnet_conf() returned an error: local subnet: {$subnet['description']}", 0);
+                $exit += $status;
+            }
+            else {
+                $text .= $subnetblock;
+            }
+
+        }
+
+        $rs->Close();
+
+    }
+
     /////////////////////////////// build static hosts //////////////////////////////////////////
 
     list($status, $hostconf) = build_hosts($host['id']);
