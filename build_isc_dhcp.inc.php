@@ -449,7 +449,7 @@ function build_hosts($server_id=0) {
     // NOTE: I use the concat and inet_ntoa functions.. not sure how portable they really are.
     $q="
         SELECT  H.id,
-                concat(D.name,'.',Z.name) primary_dns_name,
+                D.name hostname, Z.id domain_id,
                 inet_ntoa(I.IP_ADDR) ip_addr,
                 UPPER(I.MAC_ADDR) mac,
                 B.ID dhcp_entry_id
@@ -499,13 +499,16 @@ function build_hosts($server_id=0) {
     // Loop through the record set
     $last_host = 0;
     while ($host = $rs->FetchRow()) {
-        printmsg('DEBUG => build_host() Processing host: '. $host['primary_dns_name'], 5);
+        list($status, $rows, $domain) = ona_get_domain_record(array('id' => $host['domain_id']));
+        $host['fqdn'] = $host['hostname'] . '.' . $domain['fqdn'];
+
+        printmsg('DEBUG => build_host() Processing host: '. $host['fqdn'], 5);
 
         // print closing brace only if this is a new host, AND it is not the first row
         if ($last_host != $host['ip_addr'] && $last_host != 0) { $text .= "}\n\n"; }
 
         if ($last_host != $host['ip_addr']) {
-            $text .= "host {$host['ip_addr']} {  # {$host['primary_dns_name']}\n";
+            $text .= "host {$host['ip_addr']} {  # {$host['fqdn']}\n";
 
             // TODO: ipv6 may be fun here
             // https://lists.isc.org/pipermail/dhcp-users/2009-February/008463.html
