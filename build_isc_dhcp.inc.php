@@ -274,7 +274,10 @@ function subnet_conf ($subnet=array(), $indent=0) {
     // Loop through all of the dhcp entries and print them
     $i = 0;
     do {
-        list($status, $rows, $dhcp_entry) = ona_get_dhcp_option_entry_record(array('subnet_id' => $subnet['id']));
+        list($status, $rows, $dhcp_entry) = ona_get_record(
+            array('e.subnet_id' => $subnet['id']),
+            'dhcp_option_entries e LEFT JOIN dhcp_options o ON e.dhcp_option_id = o.id',
+            'o.number');
         printmsg("DEBUG => subnet_conf(): Processing option {$dhcp_entry['display_name']}", 3);
         if (!$rows) { break; }
         if ($status) { $exit++; break; }
@@ -457,6 +460,7 @@ function build_hosts($server_id=0) {
                 dns D,
                 domains Z,
                 interfaces I LEFT OUTER JOIN dhcp_option_entries B ON I.host_id = B.host_id
+                LEFT JOIN dhcp_options opts ON B.dhcp_option_id = opts.id
         WHERE   I.mac_addr NOT like ''
         AND     I.host_id = H.id
         AND     D.domain_id = Z.id
@@ -479,7 +483,7 @@ function build_hosts($server_id=0) {
                                 OR      secondary_server_id = {$server_id}))
                  )
                 )
-        ORDER BY I.ip_addr";
+        ORDER BY I.ip_addr, opts.number";
 
 
 
